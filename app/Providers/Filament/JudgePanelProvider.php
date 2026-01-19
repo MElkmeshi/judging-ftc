@@ -25,6 +25,7 @@ class JudgePanelProvider extends PanelProvider
         return $panel
             ->id('judge')
             ->path('judge')
+            ->login()
             ->colors([
                 'primary' => Color::Blue,
             ])
