@@ -18,6 +18,7 @@ class AwardTemplate extends Model
         'judging_guidelines',
         'is_ranked',
         'is_hierarchical',
+        'is_active',
         'display_order',
     ];
 
@@ -26,6 +27,7 @@ class AwardTemplate extends Model
         return [
             'is_ranked' => 'boolean',
             'is_hierarchical' => 'boolean',
+            'is_active' => 'boolean',
             'display_order' => 'integer',
         ];
     }
