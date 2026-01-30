@@ -66,13 +66,14 @@ class ScoreTeams extends Page implements HasForms
                         }
 
                         // Get only awards assigned to this judge
-                        return $user
-                            ->eventAssignments()
-                            ->with('event.awards.judges')
-                            ->get()
-                            ->flatMap(fn ($eventUser) => $eventUser->event->awards)
-                            ->filter(fn ($award) => $award->judges->contains(Auth::id()))
-                            ->filter(fn ($award) => $award->canBeScored())
+                        $eventIds = $user->eventAssignments()->pluck('event_id');
+
+                        return Award::query()
+                            ->whereIn('event_id', $eventIds)
+                            ->whereHas('judges', fn ($query) => $query->where('users.id', Auth::id()))
+                            ->where('is_locked', false)
+                            ->whereHas('event', fn ($query) => $query->where('status', 'judging'))
+                            ->orderBy('name')
                             ->pluck('name', 'id');
                     })
                     ->required()
