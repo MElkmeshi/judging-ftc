@@ -52,7 +52,30 @@ class DeliberationDashboard extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->form->fill();
+        // Check for URL parameters first
+        $eventId = request()->query('event');
+        $awardId = request()->query('award');
+
+        if ($eventId) {
+            $this->selectedEventId = (int) $eventId;
+        } else {
+            // Auto-select event if there's only one
+            $events = Event::query()->orderBy('event_date', 'desc')->get();
+
+            if ($events->count() === 1) {
+                $this->selectedEventId = $events->first()->id;
+            }
+        }
+
+        if ($awardId && $this->selectedEventId) {
+            $this->selectedAwardId = (int) $awardId;
+            $this->loadRankings();
+        }
+
+        $this->form->fill([
+            'selectedEventId' => $this->selectedEventId,
+            'selectedAwardId' => $this->selectedAwardId,
+        ]);
     }
 
     public function form(Schema $schema): Schema

@@ -59,6 +59,13 @@ class EditEvent extends EditRecord
                 ->modalSubmitActionLabel('Initialize Awards')
                 ->visible(fn () => $this->record->awards()->count() === 0),
 
+            Action::make('manageJudgeAssignments')
+                ->label('Manage Judge Assignments')
+                ->icon(Heroicon::OutlinedUserGroup)
+                ->color('info')
+                ->url(fn () => EventResource::getUrl('judge-assignments', ['record' => $this->record]))
+                ->visible(fn () => $this->record->awards()->count() > 0),
+
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),
