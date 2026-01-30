@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AwardTemplates\RelationManagers;
 
+use App\Models\AwardTemplate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -9,6 +10,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
@@ -98,16 +100,37 @@ class CriterionTemplatesRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->after(fn () => $this->syncToLinkedAwards()),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->after(fn () => $this->syncToLinkedAwards()),
+                DeleteAction::make()
+                    ->after(fn () => $this->syncToLinkedAwards()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->after(fn () => $this->syncToLinkedAwards()),
                 ]),
             ]);
+    }
+
+    protected function syncToLinkedAwards(): void
+    {
+        /** @var AwardTemplate $template */
+        $template = $this->getOwnerRecord();
+        $linkedCount = $template->getLinkedEventsCount();
+
+        if ($linkedCount > 0) {
+            $syncedCount = $template->syncToLinkedAwards();
+
+            Notification::make()
+                ->title('Criteria synced to linked events')
+                ->body("Updated {$syncedCount} award(s). All scores have been reset.")
+                ->warning()
+                ->send();
+        }
     }
 }
