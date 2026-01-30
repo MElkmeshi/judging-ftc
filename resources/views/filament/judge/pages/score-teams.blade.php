@@ -1,9 +1,9 @@
 <x-filament-panels::page>
     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        {{-- Award Selection Form --}}
+        {{-- Selection Form --}}
         <x-filament::section>
             <x-slot name="heading">
-                Select Award
+                Scoring Options
             </x-slot>
 
             <form wire:submit.prevent="submit">
@@ -12,7 +12,7 @@
         </x-filament::section>
 
         {{-- Progress Bar (All Teams View) --}}
-        @if($viewMode === 'all' && $award && !empty($allTeamsScores))
+        @if($viewMode === 'byAward' && $award && !empty($allTeamsScores))
             <x-filament::section>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                     <div>
@@ -54,7 +54,7 @@
         @endif
 
         {{-- Table View for Scoring --}}
-        @if($viewMode === 'all' && $award && !empty($allTeamsScores))
+        @if($viewMode === 'byAward' && $award && !empty($allTeamsScores))
             @php
                 $criteria = collect($allTeamsScores)->first()['scores'] ?? [];
             @endphp
@@ -216,65 +216,179 @@
             </x-filament::section>
         @endif
 
-        {{-- Single Team View (Legacy) --}}
-        @if($viewMode === 'single' && $team && $award && count($scores) > 0)
+        {{-- Progress Bar (By Team View) --}}
+        @if($viewMode === 'byTeam' && $team && !empty($allAwardsScores))
+            <x-filament::section>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 600; margin: 0;" class="text-gray-950 dark:text-white">
+                            Progress: {{ $progressStats['scored_teams'] }} of {{ $progressStats['total_teams'] }} awards scored
+                        </h3>
+                        <p style="font-size: 0.875rem; margin: 0.25rem 0 0 0;" class="text-gray-500 dark:text-gray-400">
+                            {{ $progressStats['draft_teams'] }} draft(s), {{ $progressStats['pending_teams'] }} pending
+                        </p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 1.5rem; font-weight: 700; color: rgb(var(--primary-600));">
+                            {{ $progressStats['total_teams'] > 0 ? round(($progressStats['scored_teams'] / $progressStats['total_teams']) * 100) : 0 }}%
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div style="width: 100%; background: var(--fi-color-gray-200); border-radius: 9999px; height: 0.75rem; overflow: hidden;">
+                    <div style="background: rgb(var(--primary-600)); height: 100%; border-radius: 9999px; transition: width 0.3s; width: {{ $progressStats['total_teams'] > 0 ? ($progressStats['scored_teams'] / $progressStats['total_teams']) * 100 : 0 }}%;"></div>
+                </div>
+
+                {{-- Legend --}}
+                <div style="display: flex; gap: 1.5rem; margin-top: 0.75rem; font-size: 0.75rem;">
+                    <span style="display: flex; align-items: center; gap: 0.375rem;">
+                        <span style="width: 0.75rem; height: 0.75rem; background: rgb(var(--success-500)); border-radius: 9999px; display: inline-block;"></span>
+                        Submitted
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 0.375rem;">
+                        <span style="width: 0.75rem; height: 0.75rem; background: rgb(var(--warning-500)); border-radius: 9999px; display: inline-block;"></span>
+                        Draft
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 0.375rem;">
+                        <span style="width: 0.75rem; height: 0.75rem; background: var(--fi-color-gray-400); border-radius: 9999px; display: inline-block;"></span>
+                        Pending
+                    </span>
+                </div>
+            </x-filament::section>
+        @endif
+
+        {{-- Table View for Scoring (By Team - All Awards) --}}
+        @if($viewMode === 'byTeam' && $team && !empty($allAwardsScores))
             <x-filament::section>
                 <x-slot name="heading">
-                    Score Team #{{ $team->team_number }} - {{ $team->team_name }}
+                    Team #{{ $team->team_number }} - Score All Awards
                 </x-slot>
 
                 <x-slot name="description">
-                    Award: {{ $award->name }}
+                    {{ $team->team_name }}
+                    @if($team->is_rookie)
+                        <x-filament::badge color="info" size="sm" style="margin-left: 0.5rem;">Rookie</x-filament::badge>
+                    @endif
                 </x-slot>
 
                 <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    @foreach($scores as $index => $scoreData)
-                        <div style="padding: 1rem; background: var(--fi-color-gray-50); border-radius: 0.75rem;" class="dark:bg-white/5">
-                            <div style="margin-bottom: 1rem;">
-                                <h4 style="font-size: 1rem; font-weight: 600; margin: 0;" class="text-gray-950 dark:text-white">
-                                    {{ $scoreData['criterion_name'] }}
-                                </h4>
-                                @if($scoreData['criterion_description'])
-                                    <p style="font-size: 0.875rem; margin: 0.25rem 0 0 0;" class="text-gray-500 dark:text-gray-400">
-                                        {{ $scoreData['criterion_description'] }}
-                                    </p>
-                                @endif
-                                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                                    <x-filament::badge>Max: {{ $scoreData['max_score'] }}</x-filament::badge>
-                                    <x-filament::badge color="info">{{ $scoreData['weight'] }}%</x-filament::badge>
+                    @foreach($allAwardsScores as $awardId => $awardData)
+                        @php
+                            $status = $awardData['status'];
+                            $statusColor = match($status) {
+                                'submitted' => 'success',
+                                'draft' => 'warning',
+                                default => 'gray'
+                            };
+                            $statusLabel = match($status) {
+                                'submitted' => 'Submitted',
+                                'draft' => 'Draft',
+                                default => 'Pending'
+                            };
+                        @endphp
+
+                        <div style="border: 1px solid var(--fi-color-gray-200); border-radius: 0.75rem; overflow: hidden;" class="dark:border-gray-700">
+                            {{-- Award Header --}}
+                            <div style="padding: 1rem; background: var(--fi-color-gray-50); display: flex; justify-content: space-between; align-items: center;" class="dark:bg-white/5">
+                                <div>
+                                    <h4 style="font-size: 1rem; font-weight: 600; margin: 0;" class="text-gray-950 dark:text-white">
+                                        {{ $awardData['award_name'] }}
+                                    </h4>
+                                    @if($awardData['award_description'])
+                                        <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;" class="text-gray-500 dark:text-gray-400">
+                                            {{ Str::limit($awardData['award_description'], 100) }}
+                                        </p>
+                                    @endif
                                 </div>
+                                <x-filament::badge :color="$statusColor">
+                                    {{ $statusLabel }}
+                                </x-filament::badge>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem;" class="text-gray-950 dark:text-white">
-                                        Score (0-{{ $scoreData['max_score'] }})
-                                    </label>
-                                    <x-filament::input.wrapper :disabled="$scoreData['is_submitted']">
-                                        <x-filament::input
-                                            type="number"
-                                            min="0"
-                                            max="{{ $scoreData['max_score'] }}"
-                                            step="0.01"
-                                            wire:model="scores.{{ $index }}.score"
-                                            :disabled="$scoreData['is_submitted']"
-                                        />
-                                    </x-filament::input.wrapper>
+                            {{-- Criteria Scores --}}
+                            <div style="padding: 1rem;">
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid var(--fi-color-gray-200);">
+                                                <th style="text-align: left; padding: 0.5rem; font-weight: 600;" class="text-gray-950 dark:text-white">
+                                                    Criterion
+                                                </th>
+                                                <th style="text-align: center; padding: 0.5rem; font-weight: 600; width: 100px;" class="text-gray-950 dark:text-white">
+                                                    Weight
+                                                </th>
+                                                <th style="text-align: center; padding: 0.5rem; font-weight: 600; width: 120px;" class="text-gray-950 dark:text-white">
+                                                    Score
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($awardData['scores'] as $index => $scoreData)
+                                                <tr style="border-bottom: 1px solid var(--fi-color-gray-100);">
+                                                    <td style="padding: 0.5rem;">
+                                                        <span class="text-gray-950 dark:text-white">{{ $scoreData['criterion_name'] }}</span>
+                                                        @if($scoreData['criterion_description'])
+                                                            <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;" class="text-gray-500 dark:text-gray-400">
+                                                                {{ Str::limit($scoreData['criterion_description'], 80) }}
+                                                            </p>
+                                                        @endif
+                                                    </td>
+                                                    <td style="padding: 0.5rem; text-align: center;">
+                                                        <x-filament::badge size="sm" color="info">{{ number_format($scoreData['weight'], 0) }}%</x-filament::badge>
+                                                    </td>
+                                                    <td style="padding: 0.5rem; text-align: center;">
+                                                        @if($scoreData['is_submitted'])
+                                                            <span style="font-weight: 600;" class="text-success-600 dark:text-success-400">
+                                                                {{ $scoreData['score'] ?? '-' }} / {{ $scoreData['max_score'] }}
+                                                            </span>
+                                                        @else
+                                                            <div style="display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="{{ $scoreData['max_score'] }}"
+                                                                    step="0.01"
+                                                                    wire:model.blur="allAwardsScores.{{ $awardId }}.scores.{{ $index }}.score"
+                                                                    style="width: 70px; text-align: center; padding: 0.375rem; border: 1px solid var(--fi-color-gray-300); border-radius: 0.375rem; font-size: 0.875rem; background: transparent;"
+                                                                    class="text-gray-950 dark:text-white dark:border-gray-600 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                                                                    placeholder="0-{{ $scoreData['max_score'] }}"
+                                                                />
+                                                                <span style="font-size: 0.75rem;" class="text-gray-400">/ {{ $scoreData['max_score'] }}</span>
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem;" class="text-gray-950 dark:text-white">
-                                        Notes (Optional)
-                                    </label>
-                                    <x-filament::input.wrapper :disabled="$scoreData['is_submitted']">
-                                        <textarea
-                                            wire:model="scores.{{ $index }}.notes"
-                                            @disabled($scoreData['is_submitted'])
-                                            rows="2"
-                                            style="width: 100%; resize: vertical; padding: 0.5rem; border: none; background: transparent;"
-                                            class="text-gray-950 dark:text-white"
-                                        ></textarea>
-                                    </x-filament::input.wrapper>
-                                </div>
+
+                                {{-- Award Actions --}}
+                                @if($status !== 'submitted')
+                                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--fi-color-gray-100);">
+                                        <x-filament::button
+                                            wire:click="saveAwardDraft({{ $awardId }})"
+                                            color="gray"
+                                            size="sm"
+                                        >
+                                            Save Draft
+                                        </x-filament::button>
+                                        <x-filament::button
+                                            wire:click="submitAwardScores({{ $awardId }})"
+                                            color="success"
+                                            size="sm"
+                                            wire:confirm="Submit scores for {{ $awardData['award_name'] }}? This cannot be undone."
+                                        >
+                                            Submit
+                                        </x-filament::button>
+                                    </div>
+                                @else
+                                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--fi-color-gray-100);">
+                                        <x-filament::icon icon="heroicon-o-lock-closed" class="h-4 w-4 text-gray-400" />
+                                        <span style="font-size: 0.875rem;" class="text-gray-500 dark:text-gray-400">Scores locked</span>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -282,8 +396,8 @@
             </x-filament::section>
         @endif
 
-        {{-- Empty State --}}
-        @if($award && empty($allTeamsScores) && $viewMode === 'all')
+        {{-- Empty State (By Award) --}}
+        @if($award && empty($allTeamsScores) && $viewMode === 'byAward')
             <x-filament::section>
                 <div style="text-align: center; padding: 3rem 0;">
                     <x-filament::icon
@@ -293,6 +407,21 @@
                     />
                     <p style="font-size: 1.125rem; font-weight: 500; margin: 0 0 0.5rem 0;" class="text-gray-500 dark:text-gray-400">No teams available</p>
                     <p style="font-size: 0.875rem; margin: 0;" class="text-gray-500 dark:text-gray-400">There are no active teams to score for this award.</p>
+                </div>
+            </x-filament::section>
+        @endif
+
+        {{-- Empty State (By Team) --}}
+        @if($team && empty($allAwardsScores) && $viewMode === 'byTeam')
+            <x-filament::section>
+                <div style="text-align: center; padding: 3rem 0;">
+                    <x-filament::icon
+                        icon="heroicon-o-trophy"
+                        class="h-12 w-12 text-gray-400 dark:text-gray-500"
+                        style="margin: 0 auto 1rem auto;"
+                    />
+                    <p style="font-size: 1.125rem; font-weight: 500; margin: 0 0 0.5rem 0;" class="text-gray-500 dark:text-gray-400">No awards available</p>
+                    <p style="font-size: 0.875rem; margin: 0;" class="text-gray-500 dark:text-gray-400">You are not assigned to any awards for this event, or all awards are locked.</p>
                 </div>
             </x-filament::section>
         @endif
