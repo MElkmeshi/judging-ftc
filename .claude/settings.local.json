@@ -13,7 +13,11 @@
       "Bash(php artisan make:test:*)",
       "mcp__laravel-boost__application-info",
       "Bash(php artisan route:list:*)",
-      "mcp__herd__get_site_information"
+      "mcp__herd__get_site_information",
+      "Bash(php artisan:*)",
+      "Bash(php artisan config:clear:*)",
+      "mcp__laravel-boost__tinker",
+      "Bash(php -l:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
